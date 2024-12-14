@@ -3,7 +3,7 @@ import cv2
 import logging
 import numpy as np
 from typing import Tuple, List
-from .progress import ProgressTracker
+from progress import ProgressTracker
 
 def read_video(path: str) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
     """Read video file and return frames, fps, and dimensions."""

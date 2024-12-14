@@ -5,7 +5,7 @@ import logging
 from typing import List, Tuple, Optional
 import torch
 import torch.nn.functional as F
-from ..utils.gpu_utils import clear_gpu_memory
+from utils.gpu_utils import clear_gpu_memory
 
 class SeamProcessor:
     def __init__(self, cuda_device: Optional[cp.cuda.Device], torch_device: torch.device):
