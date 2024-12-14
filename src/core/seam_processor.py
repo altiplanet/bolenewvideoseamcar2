@@ -4,69 +4,52 @@ import numpy as np
 import logging
 from typing import List, Tuple, Optional
 import torch
-import torch.nn.functional as F
-from utils.gpu_utils import clear_gpu_memory
+from ..utils.gpu_utils import clear_gpu_memory
+from ..utils.progress import create_progress_bar
 
 class SeamProcessor:
-    def __init__(self, cuda_device: Optional[cp.cuda.Device], torch_device: torch.device):
+    def __init__(self, cuda_device: Optional[cp.cuda.Device]):
         self.cuda_device = cuda_device
-        self.torch_device = torch_device
         self.use_gpu = cuda_device is not None
         logging.info(f"Initialized SeamProcessor with GPU support: {self.use_gpu}")
     
-    def _to_gpu(self, array: np.ndarray) -> cp.ndarray:
-        """Transfer array to GPU if available."""
-        return cp.asarray(array) if self.use_gpu else array
+    def process_frame_batch(self, frames: List[np.ndarray], target_size: Tuple[int, int]) -> List[np.ndarray]:
+        """Process a batch of frames to target size."""
+        target_height, target_width = target_size
+        processed_frames = []
+        
+        pbar = create_progress_bar(len(frames), "Processing frames")
+        
+        for frame in frames:
+            try:
+                # Process frame
+                processed = self._process_single_frame(frame, target_height, target_width)
+                processed_frames.append(processed)
+                pbar.update(1)
+            except Exception as e:
+                logging.error(f"Error processing frame: {str(e)}")
+                raise
+        
+        pbar.close()
+        return processed_frames
     
-    def _to_cpu(self, array: cp.ndarray) -> np.ndarray:
-        """Transfer array back to CPU if needed."""
-        return cp.asnumpy(array) if self.use_gpu else array
+    def _process_single_frame(self, frame: np.ndarray, target_height: int, target_width: int) -> np.ndarray:
+        """Process a single frame to target dimensions."""
+        current = frame.copy()
+        height, width = current.shape[:2]
+        
+        # Handle width changes
+        if width < target_width:
+            current = self._expand_width(current, target_width - width)
+        elif width > target_width:
+            current = self._reduce_width(current, width - target_width)
+            
+        # Handle height changes
+        if height < target_height:
+            current = self._expand_height(current, target_height - height)
+        elif height > target_height:
+            current = self._reduce_height(current, height - target_height)
+            
+        return current
     
-    def find_vertical_seam(self, energy_map: np.ndarray) -> np.ndarray:
-        """Find vertical seam using dynamic programming."""
-        try:
-            height, width = energy_map.shape
-            if self.use_gpu:
-                energy_gpu = self._to_gpu(energy_map)
-                cum_energy = cp.zeros_like(energy_gpu)
-                cum_energy[0] = energy_gpu[0]
-                
-                # Calculate cumulative minimum energy
-                for i in range(1, height):
-                    left = cp.roll(cum_energy[i-1], 1)
-                    right = cp.roll(cum_energy[i-1], -1)
-                    left[:, 0] = cp.inf
-                    right[:, -1] = cp.inf
-                    
-                    cum_energy[i] = energy_gpu[i] + cp.minimum(
-                        cp.minimum(left, cum_energy[i-1]),
-                        right
-                    )
-                
-                # Find optimal seam
-                seam = cp.zeros(height, dtype=cp.int32)
-                seam[-1] = cp.argmin(cum_energy[-1])
-                
-                # Backtrack
-                for i in range(height-2, -1, -1):
-                    prev_x = seam[i+1]
-                    left = prev_x - 1 if prev_x > 0 else 0
-                    right = prev_x + 2 if prev_x < width - 1 else width
-                    seam[i] = left + cp.argmin(cum_energy[i, left:right])
-                
-                return self._to_cpu(seam)
-            else:
-                # CPU fallback implementation
-                cum_energy = np.zeros_like(energy_map)
-                cum_energy[0] = energy_map[0]
-                # ... (rest of CPU implementation)
-                return seam
-                
-        except Exception as e:
-            logging.error(f"Error finding vertical seam: {str(e)}")
-            raise
-        finally:
-            if self.use_gpu:
-                clear_gpu_memory()
-    
-    # ... (rest of the class implementation)
+    # ... rest of the implementation ...

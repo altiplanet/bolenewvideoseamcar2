@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from concurrent.futures import ThreadPoolExecutor
 from .energy_calculator import EnergyCalculator
-from seam_finder import SeamFinder
+from .seam_finder import SeamFinder
 
 class FrameProcessor:
     def __init__(self, num_workers=4):

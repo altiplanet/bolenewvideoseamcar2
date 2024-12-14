@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from frame_processor import FrameProcessor
+from .frame_processor import FrameProcessor
 
 class VideoProcessor:
     def __init__(self, input_path, output_path, target_width, target_height, num_workers=4):

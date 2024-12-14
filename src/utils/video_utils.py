@@ -3,7 +3,7 @@ import cv2
 import logging
 import numpy as np
 from typing import Tuple, List
-from progress import ProgressTracker
+from .progress import create_progress_bar
 
 def read_video(path: str) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
     """Read video file and return frames, fps, and dimensions."""
@@ -22,7 +22,7 @@ def read_video(path: str) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
     logging.info(f"Video properties - FPS: {fps}, Size: {width}x{height}, Frames: {total_frames}")
     
     # Create progress bar
-    pbar = ProgressTracker.frame_reader(total_frames)
+    pbar = create_progress_bar(total_frames, "Reading frames")
     
     while True:
         ret, frame = cap.read()
@@ -34,7 +34,7 @@ def read_video(path: str) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
     pbar.close()
     cap.release()
     
-    ProgressTracker.log_progress("Frames read", len(frames), total_frames)
+    logging.info(f"Successfully read {len(frames)} frames")
     return frames, fps, (width, height)
 
 def write_video(path: str, frames: List[np.ndarray], fps: float):
@@ -47,7 +47,7 @@ def write_video(path: str, frames: List[np.ndarray], fps: float):
     out = cv2.VideoWriter(path, fourcc, fps, (width, height))
     
     logging.info(f"Writing video to {path}")
-    pbar = ProgressTracker.frame_writer(len(frames))
+    pbar = create_progress_bar(len(frames), "Writing frames")
     
     for frame in frames:
         out.write(frame)
